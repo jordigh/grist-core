@@ -27,6 +27,7 @@ promisifyAll(RedisClient.prototype);
 
 interface WebHookEvent {
   payload: RowRecord;
+  previous?: RowRecord;
   id: string;
 }
 
