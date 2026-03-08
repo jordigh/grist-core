@@ -159,19 +159,19 @@ def run(sandbox):
     return formula_prompt.evaluate_formula(eng, table_id, col_id, row_id)
 
   @export
-  def evaluate_payload_formula(formula_str, table_id, row_id):
+  def evaluate_payload_formula(formula_str, record_dict):
     """
-    Evaluates an ad-hoc Grist Python formula against a specific row for use in webhook payload
+    Evaluates an ad-hoc Grist Python formula against a record dict for use in webhook payload
     transformation. The formula can use $field syntax to access record fields.
     Returns the result directly. Raises an exception if evaluation fails.
 
     A custom evaluation path is needed here because the standard engine formula evaluation
     (engine.get_formula_value) operates on formulas already compiled into a column object.
     The payload formula is not associated with any column in the schema, so we compile it
-    on the fly and evaluate it against the engine's own table Record, exactly as the engine
-    would for a column formula.
+    on the fly and run it directly against the record that was already fetched by the caller.
     """
     import textwrap
+    import types
     from codebuilder import make_formula_body
     from fake_std_streams import FakeStdStreams
 
@@ -179,21 +179,18 @@ def run(sandbox):
     # the same transformation applied to regular column formulas.
     formula_body = make_formula_body(formula_str, default_value=None).get_text()
 
-    # Wrap inside a function with the same signature as a compiled column formula
-    # (rec, table) so that Grist built-ins and lookup functions work as expected.
-    func_code = "def _payload_formula(rec, table):\n" + textwrap.indent(formula_body, "  ")
+    # Wrap inside a function definition so the formula body can use return statements
+    # and multi-line logic, just like a regular column formula.
+    func_code = "def _payload_formula(rec):\n" + textwrap.indent(formula_body, "  ")
 
     # Execute in a copy of the usercode namespace so the formula has access to
     # Grist built-ins (datetime, math, IF, UPPER, etc.) just like column formulas do.
     func_globals = dict(eng.gencode.usercode.__dict__)
     exec(compile(func_code, '<payload_formula>', 'exec'), func_globals)  # pylint: disable=exec-used
 
-    # Use the engine's own table and Record objects, mirroring how _recompute_one_cell
-    # calls col.method(record, table.user_table) for a regular formula column.
-    table = eng.tables[table_id]
-    record = table.Record(row_id, table._identity_relation)
+    rec = types.SimpleNamespace(**record_dict)
     with FakeStdStreams():
-      return func_globals['_payload_formula'](record, table.user_table)
+      return func_globals['_payload_formula'](rec)
 
   @export
   def start_timing():
