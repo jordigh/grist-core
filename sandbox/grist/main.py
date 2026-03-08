@@ -163,10 +163,9 @@ def run(sandbox):
     """
     Evaluates a Grist Python formula against a record dict for use in webhook payload
     transformation. The formula can use $field syntax to access record fields.
-    Returns the result directly. Raises an exception if evaluation fails or if the
-    result cannot be serialized to JSON.
+    Returns the result directly. Raises an exception if evaluation fails.
+    Any serialization errors are handled on the TypeScript side.
     """
-    import json
     import textwrap
     import types
     from codebuilder import make_formula_body
@@ -185,11 +184,7 @@ def run(sandbox):
 
     rec = types.SimpleNamespace(**record_dict)
     with FakeStdStreams():
-      result = func_globals['_payload_formula'](rec)
-
-    # Validate that the result can be serialized to JSON before returning it.
-    json.dumps(result)
-    return result
+      return func_globals['_payload_formula'](rec)
 
   @export
   def start_timing():

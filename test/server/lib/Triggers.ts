@@ -501,11 +501,6 @@ describe("Triggers", function() {
           webhookStats.usage?.lastEventBatch?.errorMessage,
           "Should have a lastEventBatch error message",
         );
-        assert.include(
-          webhookStats.usage?.lastEventBatch?.errorMessage,
-          "JSON",
-          "Error message should mention JSON",
-        );
 
         await unsubscribe(docId, webhook.id);
       });
