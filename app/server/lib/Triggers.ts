@@ -314,15 +314,17 @@ export class DocTriggers {
       );
 
       const payloadFormula = trigger.payloadFormula as string | undefined;
+      const tableId = tableDataAction[1];
 
       for (const action of webhookActions) {
         for (const rowIndex of rowIndexesToSend) {
           const record = makePayload(rowIndex);
           if (payloadFormula) {
             // Evaluate the payload formula to transform the record into a custom payload.
+            const rowId = bulkColValues.id[rowIndex] as number;
             let formulaPayload: JsonValue;
             try {
-              formulaPayload = await this._activeDoc.evaluatePayloadFormula(payloadFormula, record);
+              formulaPayload = await this._activeDoc.evaluatePayloadFormula(payloadFormula, tableId, rowId);
             } catch (e) {
               const errorMsg = String(e);
               this._log(`payloadFormula failed for webhook ${action.id}: ${errorMsg}`,
