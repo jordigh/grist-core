@@ -155,6 +155,10 @@ def run(sandbox):
     return formula_prompt.convert_completion(completion)
 
   @export
+  def evaluate_formula(table_id, col_id, row_id):
+    return formula_prompt.evaluate_formula(eng, table_id, col_id, row_id)
+
+  @export
   def evaluate_payload_formula(formula_str, record_dict):
     """
     Evaluates a Grist Python formula against a record dict for use in webhook payload
@@ -162,6 +166,11 @@ def run(sandbox):
     Returns a dict with either:
       - {'ok': True, 'result': <value>} on success (result is JSON-serializable)
       - {'ok': False, 'error': <error message>} on failure
+
+    This function runs in the Grist sandbox, which is an isolated Python process.
+    Using exec here is safe for the same reason it is safe for column formulas: user
+    code already runs in the sandbox, and the sandbox provides OS-level isolation
+    (seccomp/chroot/nsjail depending on the configuration).
     """
     import json
     import textwrap

@@ -1,6 +1,8 @@
+import { RowRecord } from "app/common/DocActions";
 import { MapWithTTL } from "app/common/AsyncCreate";
 import { WebhookMessageType } from "app/common/CommTypes";
 import {
+  JsonValue,
   TriggerAction,
   WebhookBatchStatus,
   WebHookSecret,
@@ -25,7 +27,7 @@ import { createClient, Multi, RedisClient } from "redis";
 promisifyAll(RedisClient.prototype);
 
 interface WebHookEvent {
-  payload: unknown;
+  payload: RowRecord | JsonValue; // RowRecord by default; any JSON-serializable value when payloadFormula is used
   id: string;
 }
 

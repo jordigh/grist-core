@@ -14,7 +14,7 @@ import { CompiledPredicateFormula, compilePredicateFormula, ParsedPredicateFormu
 import { StringUnion } from "app/common/StringUnion";
 import { MetaRowRecord } from "app/common/TableData";
 import { CellDelta } from "app/common/TabularDiff";
-import { TriggerAction } from "app/common/Triggers";
+import { TriggerAction, JsonValue } from "app/common/Triggers";
 import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import { makeExceptionalDocSession } from "app/server/lib/DocSession";
 import log from "app/server/lib/log";
@@ -45,8 +45,7 @@ type RecordDeltas = Map<number, RecordDelta>;
  */
 interface ActionPayload {
   id: string; // Action id (each action has unique id, for webhooks this a an id from home db)
-  payload: unknown; // The payload to use with the action; by default the full record data,
-                    // but may be transformed by a payloadFormula into any JSON-serializable value
+  payload: RowRecord | JsonValue; // RowRecord by default; any JSON-serializable value when payloadFormula is used
 }
 
 export interface TriggerCondition {

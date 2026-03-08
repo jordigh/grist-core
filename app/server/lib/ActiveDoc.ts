@@ -94,6 +94,7 @@ import { schema, SCHEMA_VERSION } from "app/common/schema";
 import { MetaRowRecord, SingleCell } from "app/common/TableData";
 import { TelemetryEvent, TelemetryMetadataByLevel } from "app/common/Telemetry";
 import { FetchUrlOptions, UploadResult } from "app/common/uploads";
+import { JsonValue } from "app/common/Triggers";
 import {
   ANONYMOUS_USER_EMAIL,
   ArchiveUploadResult,
@@ -1762,7 +1763,7 @@ export class ActiveDoc extends EventEmitter {
   public evaluatePayloadFormula(
     formula: string,
     record: RowRecord,
-  ): Promise<{ok: true; result: unknown} | {ok: false; error: string}> {
+  ): Promise<{ok: true; result: JsonValue} | {ok: false; error: string}> {
     return this._rawPyCall("evaluate_payload_formula", formula, record);
   }
 

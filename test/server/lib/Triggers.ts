@@ -127,14 +127,15 @@ describe("Triggers", function() {
     name?: string,
     memo?: string,
     enabled?: boolean,
-  }, webhookUrl?: string) {
+    url?: string,
+  }) {
     // Subscribe helper that returns a method to unsubscribe.
     const { data, status } = await axios.post(`${serverUrl}/api/docs/${docId}/webhooks`, {
       webhooks: [{
         fields: {
           tableId: options?.tableId ?? "Table1",
           eventTypes: options?.eventTypes ?? ["add", "update"],
-          url: webhookUrl ?? `${serving.url}/data`,
+          url: options?.url ?? `${serving.url}/data`,
           isReadyColumn: options?.isReadyColumn,
           ...pick(options, "name", "memo", "enabled", "watchedColIds", "condition", "payloadFormula"),
         },
@@ -409,11 +410,16 @@ describe("Triggers", function() {
   describe("payloadFormula", function() {
     let docId: string;
     let doc: DocAPI;
+    let captureServing: Serving;
     this.timeout("30s");
 
     before(async function() {
       docId = await ownerApi.newDoc({ name: "testdocFormula" }, wsId);
       doc = ownerApi.getDocAPI(docId);
+    });
+
+    after(async function() {
+      await captureServing?.shutdown();
     });
 
     afterEach(async function() {
@@ -429,7 +435,7 @@ describe("Triggers", function() {
       // Set up a capturing webhook server that records the received body.
       const received: any[] = [];
       const receivedDefer = new Defer<void>();
-      const captureServing = await serveSomething((app) => {
+      captureServing = await serveSomething((app) => {
         app.use(express.json());
         app.post("/", (req, res) => {
           received.push(...req.body);
@@ -442,7 +448,8 @@ describe("Triggers", function() {
       const webhook = await subscribe(docId, {
         tableId: "Table1",
         payloadFormula: '{"rowId": $id, "doubled": $A * 2}',
-      }, `${captureServing.url}/`);
+        url: `${captureServing.url}/`,
+      });
 
       // Add a record - should trigger webhook with transformed payload
       await doc.addRows("Table1", { A: [5] });
@@ -455,13 +462,12 @@ describe("Triggers", function() {
       assert.deepEqual(received[0], { rowId: 1, doubled: 10 });
 
       await unsubscribe(docId, webhook.id);
-      await captureServing.shutdown();
     });
 
     it("should report error in webhook status when formula output cannot be serialized to JSON",
       async function() {
         // Set up a capturing webhook server
-        const captureServing = await serveSomething((app) => {
+        captureServing = await serveSomething((app) => {
           app.use(express.json());
           app.post("/", (_, res) => {
             res.sendStatus(200);
@@ -473,7 +479,8 @@ describe("Triggers", function() {
           tableId: "Table1",
           // complex() returns a Python complex number, which is not JSON-serializable
           payloadFormula: 'complex(1, 2)',
-        }, `${captureServing.url}/`);
+          url: `${captureServing.url}/`,
+        });
 
         // Add a record - the payloadFormula will fail to serialize
         await doc.addRows("Table1", { A: [1] });
@@ -499,7 +506,6 @@ describe("Triggers", function() {
         );
 
         await unsubscribe(docId, webhook.id);
-        await captureServing.shutdown();
       });
   });
 });
