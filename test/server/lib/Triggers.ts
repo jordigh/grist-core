@@ -421,8 +421,6 @@ describe("Triggers", function() {
       await clearQueue(docId);
       await doc.applyUserActions([
         ["RemoveRecord", "_grist_Triggers", 1],
-      ]);
-      await doc.applyUserActions([
         ["RemoveRecord", "Table1", 1],
       ]);
     });

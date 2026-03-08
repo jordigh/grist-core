@@ -164,6 +164,7 @@ def run(sandbox):
       - {'ok': False, 'error': <error message>} on failure
     """
     import json
+    import textwrap
     import types
     from codebuilder import make_formula_body
 
@@ -172,13 +173,10 @@ def run(sandbox):
       formula_body = make_formula_body(formula_str, default_value=None).get_text()
 
       # Create a simple namespace so that rec.field_name works
-      rec = types.SimpleNamespace(**{str(k): v for k, v in record_dict.items()})
+      rec = types.SimpleNamespace(**record_dict)
 
       # Wrap the formula body (which already has 'return') inside a function
-      func_lines = ["def _payload_formula(rec):"]
-      for line in formula_body.split('\n'):
-        func_lines.append("  " + line)
-      func_code = "\n".join(func_lines)
+      func_code = "def _payload_formula(rec):\n" + textwrap.indent(formula_body, "  ")
 
       local_ns = {}
       exec(compile(func_code, '<payload_formula>', 'exec'), local_ns)  # pylint: disable=exec-used
