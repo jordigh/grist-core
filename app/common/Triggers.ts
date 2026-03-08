@@ -15,6 +15,7 @@ export interface WebhookFields {
   enabled?: boolean;
   isReadyColumn?: string | null;
   condition?: string;
+  payloadFormula?: string | null;
   name?: string;
   memo?: string;
 }
@@ -39,6 +40,7 @@ export interface WebhookSubscribe {
   watchedColIds?: string[];
   enabled?: boolean;
   condition?: string;
+  payloadFormula?: string | null;
   isReadyColumn?: string | null;
   name?: string;
   memo?: string;
@@ -80,6 +82,7 @@ export interface WebhookPatch {
   watchedColIds?: string[];
   enabled?: boolean;
   isReadyColumn?: string | null;
+  payloadFormula?: string | null;
   name?: string;
   memo?: string;
 }

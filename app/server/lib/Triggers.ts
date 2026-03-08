@@ -45,7 +45,8 @@ type RecordDeltas = Map<number, RecordDelta>;
  */
 interface ActionPayload {
   id: string; // Action id (each action has unique id, for webhooks this a an id from home db)
-  payload: RowRecord; // The record data to use with the action
+  payload: unknown; // The payload to use with the action; by default the full record data,
+                    // but may be transformed by a payloadFormula into any JSON-serializable value
 }
 
 export interface TriggerCondition {
@@ -179,7 +180,7 @@ export class DocTriggers {
 
     const events: ActionPayload[] = [];
     for (const task of tasks) {
-      events.push(...this._handleTask(task, await task.tableDataAction));
+      events.push(...await this._handleTask(task, await task.tableDataAction));
     }
 
     await this.enqueue(events);
@@ -253,7 +254,7 @@ export class DocTriggers {
     return recordDeltas;
   }
 
-  private _handleTask(
+  private async _handleTask(
     { tableDelta, triggers, recordDeltas }: Task,
     tableDataAction: TableDataAction,
   ) {
@@ -313,10 +314,24 @@ export class DocTriggers {
       },
       );
 
+      const payloadFormula = trigger.payloadFormula as string | undefined;
+
       for (const action of webhookActions) {
         for (const rowIndex of rowIndexesToSend) {
-          const event = { id: action.id, payload: makePayload(rowIndex) };
-          result.push(event);
+          const record = makePayload(rowIndex);
+          if (payloadFormula) {
+            // Evaluate the payload formula to transform the record into a custom payload.
+            const formulaResult = await this._activeDoc.evaluatePayloadFormula(payloadFormula, record);
+            if (!formulaResult.ok) {
+              const errorMsg = `payloadFormula failed for webhook ${action.id}: ${formulaResult.error}`;
+              this._log(errorMsg, { level: "warn", actionId: action.id, triggerId: trigger.id });
+              await this._jobQueue.logPayloadFormulaError(action.id, formulaResult.error);
+              continue;
+            }
+            result.push({ id: action.id, payload: formulaResult.result });
+          } else {
+            result.push({ id: action.id, payload: record });
+          }
         }
       }
     }

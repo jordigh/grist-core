@@ -211,7 +211,7 @@ export class DocApiTriggers {
       }
 
       // assign other field properties
-      Object.assign(fields, _.pick(webhook, ["enabled", "memo", "condition"]));
+      Object.assign(fields, _.pick(webhook, ["enabled", "memo", "condition", "payloadFormula"]));
       if (name) {
         fields.label = name;
       }

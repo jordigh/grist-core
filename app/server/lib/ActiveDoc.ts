@@ -54,6 +54,7 @@ import {
   DocAction,
   getTableId,
   isSchemaAction,
+  RowRecord,
   TableDataAction,
   toTableDataAction,
   UserAction,
@@ -1751,6 +1752,18 @@ export class ActiveDoc extends EventEmitter {
       throw new Error("evaluateCurrentFormula must be true");
     }
     return this._pyCall("evaluate_formula", options.tableId, options.colId, options.rowId);
+  }
+
+  /**
+   * Evaluates a Grist Python payload formula against a record for webhook payload transformation.
+   * Returns {ok: true, result} on success, or {ok: false, error} if evaluation or JSON
+   * serialization fails.
+   */
+  public evaluatePayloadFormula(
+    formula: string,
+    record: RowRecord,
+  ): Promise<{ok: true; result: unknown} | {ok: false; error: string}> {
+    return this._rawPyCall("evaluate_payload_formula", formula, record);
   }
 
   public fetchURL(docSession: DocSession, url: string, options?: FetchUrlOptions): Promise<UploadResult> {

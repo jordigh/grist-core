@@ -155,8 +155,40 @@ def run(sandbox):
     return formula_prompt.convert_completion(completion)
 
   @export
-  def evaluate_formula(table_id, col_id, row_id):
-    return formula_prompt.evaluate_formula(eng, table_id, col_id, row_id)
+  def evaluate_payload_formula(formula_str, record_dict):
+    """
+    Evaluates a Grist Python formula against a record dict for use in webhook payload
+    transformation. The formula can use $field syntax to access record fields.
+    Returns a dict with either:
+      - {'ok': True, 'result': <value>} on success (result is JSON-serializable)
+      - {'ok': False, 'error': <error message>} on failure
+    """
+    import json
+    import types
+    from codebuilder import make_formula_body
+
+    try:
+      # Convert $field syntax (e.g. $A) to rec.field syntax (e.g. rec.A)
+      formula_body = make_formula_body(formula_str, default_value=None).get_text()
+
+      # Create a simple namespace so that rec.field_name works
+      rec = types.SimpleNamespace(**{str(k): v for k, v in record_dict.items()})
+
+      # Wrap the formula body (which already has 'return') inside a function
+      func_lines = ["def _payload_formula(rec):"]
+      for line in formula_body.split('\n'):
+        func_lines.append("  " + line)
+      func_code = "\n".join(func_lines)
+
+      local_ns = {}
+      exec(compile(func_code, '<payload_formula>', 'exec'), local_ns)  # pylint: disable=exec-used
+      result = local_ns['_payload_formula'](rec)
+
+      # Validate that the result can be serialized to JSON
+      json.dumps(result)
+      return {'ok': True, 'result': result}
+    except Exception as e:  # pylint: disable=broad-except
+      return {'ok': False, 'error': str(e)}
 
   @export
   def start_timing():
