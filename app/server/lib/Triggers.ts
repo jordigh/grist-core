@@ -14,7 +14,7 @@ import { CompiledPredicateFormula, compilePredicateFormula, ParsedPredicateFormu
 import { StringUnion } from "app/common/StringUnion";
 import { MetaRowRecord } from "app/common/TableData";
 import { CellDelta } from "app/common/TabularDiff";
-import { TriggerAction, JsonValue } from "app/common/Triggers";
+import { JsonValue, TriggerAction } from "app/common/Triggers";
 import { ActiveDoc } from "app/server/lib/ActiveDoc";
 import { makeExceptionalDocSession } from "app/server/lib/DocSession";
 import log from "app/server/lib/log";

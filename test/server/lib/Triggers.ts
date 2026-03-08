@@ -478,7 +478,7 @@ describe("Triggers", function() {
         const webhook = await subscribe(docId, {
           tableId: "Table1",
           // complex() returns a Python complex number, which is not JSON-serializable
-          payloadFormula: 'complex(1, 2)',
+          payloadFormula: "complex(1, 2)",
           url: `${captureServing.url}/`,
         });
 
@@ -497,12 +497,12 @@ describe("Triggers", function() {
         assert.isOk(webhookStats, "Should find the webhook stats");
         assert.isOk(
           webhookStats.usage?.lastEventBatch?.errorMessage,
-          "Should have a lastEventBatch error message"
+          "Should have a lastEventBatch error message",
         );
         assert.include(
           webhookStats.usage?.lastEventBatch?.errorMessage,
           "JSON",
-          "Error message should mention JSON"
+          "Error message should mention JSON",
         );
 
         await unsubscribe(docId, webhook.id);

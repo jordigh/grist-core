@@ -1,6 +1,6 @@
-import { RowRecord } from "app/common/DocActions";
 import { MapWithTTL } from "app/common/AsyncCreate";
 import { WebhookMessageType } from "app/common/CommTypes";
+import { RowRecord } from "app/common/DocActions";
 import {
   JsonValue,
   TriggerAction,
@@ -179,7 +179,7 @@ export class WebhookQueue {
    * Logs a payload formula evaluation error for a webhook, recording it in the webhook's status.
    */
   public async logPayloadFormulaError(webhookId: string, error: string): Promise<void> {
-    await this._stats.logBatch(webhookId, 'failure', { error });
+    await this._stats.logBatch(webhookId, "failure", { error });
   }
 
   public async clearWebhookQueue() {

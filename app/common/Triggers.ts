@@ -1,5 +1,5 @@
 // JSON-serializable value type, as produced by a payloadFormula evaluation.
-export type JsonValue = string | number | boolean | null | {[key: string]: JsonValue} | JsonValue[];
+export type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
 export interface WebhookSubscribeCollection {
   webhooks: Webhook[]
