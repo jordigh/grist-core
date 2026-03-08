@@ -1757,13 +1757,13 @@ export class ActiveDoc extends EventEmitter {
 
   /**
    * Evaluates a Grist Python payload formula against a record for webhook payload transformation.
-   * Returns {ok: true, result} on success, or {ok: false, error} if evaluation or JSON
+   * Returns the JSON-serializable result directly, or throws if evaluation or JSON
    * serialization fails.
    */
   public evaluatePayloadFormula(
     formula: string,
     record: RowRecord,
-  ): Promise<{ ok: true; result: JsonValue } | { ok: false; error: string }> {
+  ): Promise<JsonValue> {
     return this._rawPyCall("evaluate_payload_formula", formula, record);
   }
 

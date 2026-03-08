@@ -163,39 +163,33 @@ def run(sandbox):
     """
     Evaluates a Grist Python formula against a record dict for use in webhook payload
     transformation. The formula can use $field syntax to access record fields.
-    Returns a dict with either:
-      - {'ok': True, 'result': <value>} on success (result is JSON-serializable)
-      - {'ok': False, 'error': <error message>} on failure
-
-    This function runs in the Grist sandbox, which is an isolated Python process.
-    Using exec here is safe for the same reason it is safe for column formulas: user
-    code already runs in the sandbox, and the sandbox provides OS-level isolation
-    (seccomp/chroot/nsjail depending on the configuration).
+    Returns the result directly. Raises an exception if evaluation fails or if the
+    result cannot be serialized to JSON.
     """
     import json
     import textwrap
     import types
     from codebuilder import make_formula_body
+    from fake_std_streams import FakeStdStreams
 
-    try:
-      # Convert $field syntax (e.g. $A) to rec.field syntax (e.g. rec.A)
-      formula_body = make_formula_body(formula_str, default_value=None).get_text()
+    # Convert $field syntax (e.g. $A) to rec.field syntax (e.g. rec.A)
+    formula_body = make_formula_body(formula_str, default_value=None).get_text()
 
-      # Create a simple namespace so that rec.field_name works
-      rec = types.SimpleNamespace(**record_dict)
+    # Wrap inside a function definition
+    func_code = "def _payload_formula(rec):\n" + textwrap.indent(formula_body, "  ")
 
-      # Wrap the formula body (which already has 'return') inside a function
-      func_code = "def _payload_formula(rec):\n" + textwrap.indent(formula_body, "  ")
+    # Execute in a copy of the usercode namespace so the formula has access to
+    # Grist built-ins (datetime, math, IF, UPPER, etc.) just like column formulas do.
+    func_globals = dict(eng.gencode.usercode.__dict__)
+    exec(compile(func_code, '<payload_formula>', 'exec'), func_globals)  # pylint: disable=exec-used
 
-      local_ns = {}
-      exec(compile(func_code, '<payload_formula>', 'exec'), local_ns)  # pylint: disable=exec-used
-      result = local_ns['_payload_formula'](rec)
+    rec = types.SimpleNamespace(**record_dict)
+    with FakeStdStreams():
+      result = func_globals['_payload_formula'](rec)
 
-      # Validate that the result can be serialized to JSON
-      json.dumps(result)
-      return {'ok': True, 'result': result}
-    except Exception as e:  # pylint: disable=broad-except
-      return {'ok': False, 'error': str(e)}
+    # Validate that the result can be serialized to JSON before returning it.
+    json.dumps(result)
+    return result
 
   @export
   def start_timing():

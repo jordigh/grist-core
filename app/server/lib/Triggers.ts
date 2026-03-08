@@ -320,14 +320,17 @@ export class DocTriggers {
           const record = makePayload(rowIndex);
           if (payloadFormula) {
             // Evaluate the payload formula to transform the record into a custom payload.
-            const formulaResult = await this._activeDoc.evaluatePayloadFormula(payloadFormula, record);
-            if (!formulaResult.ok) {
-              const errorMsg = `payloadFormula failed for webhook ${action.id}: ${formulaResult.error}`;
-              this._log(errorMsg, { level: "warn", actionId: action.id, triggerId: trigger.id });
-              await this._jobQueue.logPayloadFormulaError(action.id, formulaResult.error);
+            let formulaPayload: JsonValue;
+            try {
+              formulaPayload = await this._activeDoc.evaluatePayloadFormula(payloadFormula, record);
+            } catch (e) {
+              const errorMsg = String(e);
+              this._log(`payloadFormula failed for webhook ${action.id}: ${errorMsg}`,
+                { level: "warn", actionId: action.id, triggerId: trigger.id });
+              await this._jobQueue.logPayloadFormulaError(action.id, errorMsg);
               continue;
             }
-            result.push({ id: action.id, payload: formulaResult.result });
+            result.push({ id: action.id, payload: formulaPayload });
           } else {
             result.push({ id: action.id, payload: record });
           }
