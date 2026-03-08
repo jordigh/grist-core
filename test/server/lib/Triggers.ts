@@ -410,7 +410,7 @@ describe("Triggers", function() {
   describe("payloadFormula", function() {
     let docId: string;
     let doc: DocAPI;
-    let captureServing: Serving;
+    let captureServing: Serving | undefined;
     this.timeout("30s");
 
     before(async function() {
@@ -429,6 +429,8 @@ describe("Triggers", function() {
         ["RemoveRecord", "_grist_Triggers", 1],
         ["RemoveRecord", "Table1", 1],
       ]);
+      await captureServing?.shutdown();
+      captureServing = undefined;
     });
 
     it("should transform the payload using the formula", async function() {
