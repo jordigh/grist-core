@@ -446,7 +446,6 @@ describe("Triggers", function() {
         });
       });
 
-      waiter.start();
       const webhook = await subscribe(docId, {
         tableId: "Table1",
         payloadFormula: '{"rowId": $id, "doubled": $A * 2}',
@@ -454,6 +453,7 @@ describe("Triggers", function() {
       });
 
       // Add a record - should trigger webhook with transformed payload
+      waiter.start();
       await doc.addRows("Table1", { A: [5] });
       assert.equal(await waiter.wait(), 1, "Should have processed one event");
 
@@ -476,7 +476,6 @@ describe("Triggers", function() {
           });
         });
 
-        waiter.start();
         const webhook = await subscribe(docId, {
           tableId: "Table1",
           // complex() returns a Python complex number, which is not JSON-serializable
@@ -485,6 +484,7 @@ describe("Triggers", function() {
         });
 
         // Add a record - the payloadFormula will fail to serialize
+        waiter.start();
         await doc.addRows("Table1", { A: [1] });
         // The event is skipped due to formula error, enqueue is called with 0 events
         assert.equal(await waiter.wait(), 0, "Should have processed zero events (formula failed)");

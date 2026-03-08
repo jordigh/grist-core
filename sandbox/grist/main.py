@@ -163,13 +163,15 @@ def run(sandbox):
     """
     Evaluates an ad-hoc Grist Python formula against a record dict for use in webhook payload
     transformation. The formula can use $field syntax to access record fields.
-    Returns the result directly. Raises an exception if evaluation fails.
+    Returns the result directly. Raises an exception if evaluation fails or if the result
+    cannot be serialized to JSON.
 
     A custom evaluation path is needed here because the standard engine formula evaluation
     (engine.get_formula_value) operates on formulas already compiled into a column object.
     The payload formula is not associated with any column in the schema, so we compile it
     on the fly and run it directly against the record that was already fetched by the caller.
     """
+    import json
     import textwrap
     import types
     from codebuilder import make_formula_body
@@ -190,7 +192,13 @@ def run(sandbox):
 
     rec = types.SimpleNamespace(**record_dict)
     with FakeStdStreams():
-      return func_globals['_payload_formula'](rec)
+      result = func_globals['_payload_formula'](rec)
+
+    # Validate that the result can be serialized to JSON. This catches non-JSON-serializable
+    # values (e.g. Python complex numbers) before they reach the marshal layer, allowing the
+    # error to be reported cleanly without crashing the sandbox communication channel.
+    json.dumps(result)
+    return result
 
   @export
   def start_timing():
