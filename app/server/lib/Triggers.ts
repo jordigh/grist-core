@@ -322,7 +322,7 @@ export class DocTriggers {
             // Evaluate the payload formula to transform the record into a custom payload.
             let formulaPayload: JsonValue;
             try {
-              formulaPayload = await this._activeDoc.evaluatePayloadFormula(payloadFormula, record);
+              formulaPayload = await this._activeDoc.evaluateFormulaAdhoc(payloadFormula, record);
             } catch (e) {
               const errorMsg = String(e);
               this._log(`payloadFormula failed for webhook ${action.id}: ${errorMsg}`,

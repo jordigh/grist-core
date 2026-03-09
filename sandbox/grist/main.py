@@ -159,44 +159,30 @@ def run(sandbox):
     return formula_prompt.evaluate_formula(eng, table_id, col_id, row_id)
 
   @export
-  def evaluate_payload_formula(formula_str, record_dict):
+  def evaluate_formula_adhoc(formula_str, record_dict):
     """
-    Evaluates an ad-hoc Grist Python formula against a record dict for use in webhook payload
-    transformation. The formula can use $field syntax to access record fields.
-    Returns the result directly. Raises an exception if evaluation fails or if the result
-    cannot be serialized to JSON.
+    Evaluates a Grist Python formula against a plain record dict.  The formula
+    uses $field syntax to access record fields, exactly like a column formula,
+    but it is not tied to any table or column in the document schema.
 
-    A custom evaluation path is needed here because the standard engine formula evaluation
-    (engine.get_formula_value) operates on formulas already compiled into a column object.
-    The payload formula is not associated with any column in the schema, so we compile it
-    on the fly and run it directly against the record that was already fetched by the caller.
+    We validate that the result is JSON-serialisable before returning it.  This
+    is necessary for two reasons:
+      1. The result will ultimately be sent as a JSON webhook payload, so
+         non-serialisable values (e.g. Python complex numbers) are invalid.
+      2. Python's marshal module *can* encode some types (e.g. complex) that the
+         TypeScript unmarshaller does not support.  If such a value reached the
+         marshal layer it would raise an error that closes the sandbox pipe,
+         terminating the sandbox process.  Catching it here instead lets the
+         error surface as a normal sandbox exception that callers can handle
+         gracefully.
     """
     import json
-    import textwrap
     import types
-    from codebuilder import make_formula_body
-    from fake_std_streams import FakeStdStreams
-
-    # Convert $field syntax (e.g. $A) to rec.field syntax (e.g. rec.A), matching
-    # the same transformation applied to regular column formulas.
-    formula_body = make_formula_body(formula_str, default_value=None).get_text()
-
-    # Wrap inside a function definition so the formula body can use return statements
-    # and multi-line logic, just like a regular column formula.
-    func_code = "def _payload_formula(rec):\n" + textwrap.indent(formula_body, "  ")
-
-    # Execute in a copy of the usercode namespace so the formula has access to
-    # Grist built-ins (datetime, math, IF, UPPER, etc.) just like column formulas do.
-    func_globals = dict(eng.gencode.usercode.__dict__)
-    exec(compile(func_code, '<payload_formula>', 'exec'), func_globals)  # pylint: disable=exec-used
 
     rec = types.SimpleNamespace(**record_dict)
-    with FakeStdStreams():
-      result = func_globals['_payload_formula'](rec)
+    result = formula_prompt._eval_formula(eng, formula_str, rec)
 
-    # Validate that the result can be serialized to JSON. This catches non-JSON-serializable
-    # values (e.g. Python complex numbers) before they reach the marshal layer, allowing the
-    # error to be reported cleanly without crashing the sandbox communication channel.
+    # Raises TypeError / ValueError for non-JSON-serialisable values (see docstring).
     json.dumps(result)
     return result
 

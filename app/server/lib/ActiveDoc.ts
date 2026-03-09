@@ -1756,14 +1756,16 @@ export class ActiveDoc extends EventEmitter {
   }
 
   /**
-   * Evaluates a Grist Python payload formula against a record for webhook payload transformation.
-   * Returns the result directly, or throws if evaluation fails.
+   * Evaluates a Grist Python formula against a plain record dict.  The formula
+   * uses $field syntax like a column formula but is not tied to any table or
+   * column in the document schema.  Returns the result directly, or throws if
+   * evaluation or JSON validation fails.
    */
-  public evaluatePayloadFormula(
+  public evaluateFormulaAdhoc(
     formula: string,
     record: RowRecord,
   ): Promise<JsonValue> {
-    return this._rawPyCall("evaluate_payload_formula", formula, record);
+    return this._rawPyCall("evaluate_formula_adhoc", formula, record);
   }
 
   public fetchURL(docSession: DocSession, url: string, options?: FetchUrlOptions): Promise<UploadResult> {
