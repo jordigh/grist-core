@@ -8,6 +8,7 @@ import logging
 import re
 import rlcompleter
 import sys
+import textwrap
 import time
 import traceback
 from collections import namedtuple, OrderedDict, defaultdict
@@ -20,7 +21,7 @@ import actions
 import action_obj
 from attribute_recorder import AttributeRecorder
 from autocomplete_context import AutocompleteContext, lookup_autocomplete_options, eval_suggestion
-from codebuilder import DOLLAR_REGEX
+from codebuilder import DOLLAR_REGEX, make_formula_body
 import depend
 import docactions
 import docmodel
@@ -737,6 +738,36 @@ class Engine(object):
       # It is possible for formula evaluation to have side-effects that produce DocActions (e.g.
       # lookupOrAddDerived() creates those). In case of get_formula_error(), these aren't fully
       # processed (e.g. don't get applied to DocStorage), so it's important to reverse them.
+      self._sync_request = False
+      self._undo_to_checkpoint(checkpoint)
+
+  def eval_formula_adhoc(self, formula_str, rec):
+    """
+    Evaluate an ad-hoc formula string against a record-like object.
+
+    Unlike get_formula_value(), this does not reference any column in the schema: the formula
+    is compiled on the fly and run against ``rec``, which may be any object that supports
+    attribute access (e.g. a SimpleNamespace built from a plain dict, or an engine Record).
+    $field syntax in the formula is translated to rec.field accesses by make_formula_body().
+
+    The same undo-checkpoint and sync-request handling used by get_formula_value() is applied
+    so that any side-effects (e.g. from lookupOrAddDerived) are properly reversed.
+
+    Note: ``rec`` is intentionally a pre-built object rather than a table_id/row_id pair so
+    that callers dealing with deleted rows (which no longer exist in the live table) can still
+    supply the field values captured at trigger time.
+    """
+    formula_body = make_formula_body(formula_str, default_value=None).get_text()
+    func_code = "def _formula(rec):\n" + textwrap.indent(formula_body, "  ")
+    func_globals = dict(self.gencode.usercode.__dict__)
+    exec(compile(func_code, "<formula>", "exec"), func_globals)  # pylint: disable=exec-used
+
+    checkpoint = self._get_undo_checkpoint()
+    self._sync_request = True
+    try:
+      with FakeStdStreams():
+        return func_globals["_formula"](rec)
+    finally:
       self._sync_request = False
       self._undo_to_checkpoint(checkpoint)
 

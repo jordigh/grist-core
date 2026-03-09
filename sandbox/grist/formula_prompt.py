@@ -10,7 +10,6 @@ import attribute_recorder
 import objtypes
 from codebuilder import make_formula_body
 from column import is_visible_column, BaseReferenceColumn
-from fake_std_streams import FakeStdStreams
 from objtypes import RaisedException
 import records
 
@@ -249,40 +248,20 @@ def convert_completion(completion):
   return result.strip()
 
 
-def _eval_formula(engine, formula_str, rec):
-  """
-  Compile a Grist formula string and evaluate it against a record-like object.
-
-  This is a low-level kernel used by both evaluate_formula() and
-  evaluate_formula_adhoc().  The formula uses $field syntax which is
-  translated to rec.field accesses, so ``rec`` may be any object that
-  supports attribute access (a proper engine Record, an AttributeRecorder
-  wrapper, or a SimpleNamespace built from a plain dict).
-  """
-  formula_body = make_formula_body(formula_str, default_value=None).get_text()
-  func_code = "def _formula(rec):\n" + textwrap.indent(formula_body, "  ")
-  func_globals = dict(engine.gencode.usercode.__dict__)
-  exec(compile(func_code, "<formula>", "exec"), func_globals)  # pylint: disable=exec-used
-  with FakeStdStreams():
-    return func_globals["_formula"](rec)
-
-
 def evaluate_formula(engine, table_id, col_id, row_id):
   grist_formula = engine.docmodel.get_column_rec(table_id, col_id).formula
   assert grist_formula
   plain_formula = make_formula_body(grist_formula, default_value=None).get_text()
 
-  table = engine.tables[table_id]
-  record = table.Record(row_id, table._identity_relation)
   attributes = {}
-  record = attribute_recorder.AttributeRecorder(record, "rec", attributes)
-  try:
-    result = _eval_formula(engine, grist_formula, record)
+  result = engine.get_formula_value(table_id, col_id, row_id, record_attributes=attributes)
+  if isinstance(result, objtypes.RaisedException):
+    name, message = result.encode_args()[:2]
+    result = "%s: %s" % (name, message)
+    error = True
+  else:
     result = attribute_recorder.safe_repr(result)
     error = False
-  except Exception as e:  # pylint: disable=broad-except
-    result = "%s: %s" % (type(e).__name__, e)
-    error = True
   return dict(
     error=error,
     formula=plain_formula,

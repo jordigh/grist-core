@@ -180,7 +180,7 @@ def run(sandbox):
     import types
 
     rec = types.SimpleNamespace(**record_dict)
-    result = formula_prompt._eval_formula(eng, formula_str, rec)
+    result = eng.eval_formula_adhoc(formula_str, rec)
 
     # Raises TypeError / ValueError for non-JSON-serialisable values (see docstring).
     json.dumps(result)
