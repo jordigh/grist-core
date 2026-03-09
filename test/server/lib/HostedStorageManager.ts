@@ -905,15 +905,15 @@ describe("HostedStorageManager", function() {
         });
         await waitForIt(async () => {
           const { snapshots } = await store.storageManager.getSnapshots(doc.docName);
-          // Should be keeping at least five, and then maybe 1 more if the hour changed
-          // during the test.
-          assert.isAtMost(snapshots.length, 6);
+          // Should be keeping at least five (GRIST_SNAPSHOT_KEEP default), plus at most
+          // 2 more if time-bucket boundaries (e.g. hour or day) were crossed during the test.
+          assert.isAtMost(snapshots.length, 7);
           assert.isAtLeast(snapshots.length, 5);
         }, 20000);
         await waitForIt(async () => {
           // Double check with external store directly.
           const snapshots = await store.storageManager.testGetExternalStorage().versions(doc.docName);
-          assert.isAtMost(snapshots.length, 6);
+          assert.isAtMost(snapshots.length, 7);
           assert.isAtLeast(snapshots.length, 5);
         }, 20000);
       });

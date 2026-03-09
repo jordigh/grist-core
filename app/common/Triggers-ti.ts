@@ -21,6 +21,7 @@ export const WebhookFields = t.iface([], {
   "enabled": t.opt("boolean"),
   "isReadyColumn": t.opt(t.union("string", "null")),
   "condition": t.opt("string"),
+  "payloadFormula": t.opt(t.union("string", "null")),
   "name": t.opt("string"),
   "memo": t.opt("string"),
 });
@@ -42,6 +43,7 @@ export const WebhookSubscribe = t.iface([], {
   "watchedColIds": t.opt(t.array("string")),
   "enabled": t.opt("boolean"),
   "condition": t.opt("string"),
+  "payloadFormula": t.opt(t.union("string", "null")),
   "isReadyColumn": t.opt(t.union("string", "null")),
   "name": t.opt("string"),
   "memo": t.opt("string"),
@@ -81,6 +83,7 @@ export const WebhookPatch = t.iface([], {
   "watchedColIds": t.opt(t.array("string")),
   "enabled": t.opt("boolean"),
   "isReadyColumn": t.opt(t.union("string", "null")),
+  "payloadFormula": t.opt(t.union("string", "null")),
   "name": t.opt("string"),
   "memo": t.opt("string"),
 });

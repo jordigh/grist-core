@@ -1,3 +1,6 @@
+// JSON-serializable value type, as produced by a payloadFormula evaluation.
+export type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+
 export interface WebhookSubscribeCollection {
   webhooks: Webhook[]
 }
@@ -15,6 +18,7 @@ export interface WebhookFields {
   enabled?: boolean;
   isReadyColumn?: string | null;
   condition?: string;
+  payloadFormula?: string | null;
   name?: string;
   memo?: string;
 }
@@ -39,6 +43,7 @@ export interface WebhookSubscribe {
   watchedColIds?: string[];
   enabled?: boolean;
   condition?: string;
+  payloadFormula?: string | null;
   isReadyColumn?: string | null;
   name?: string;
   memo?: string;
@@ -80,6 +85,7 @@ export interface WebhookPatch {
   watchedColIds?: string[];
   enabled?: boolean;
   isReadyColumn?: string | null;
+  payloadFormula?: string | null;
   name?: string;
   memo?: string;
 }

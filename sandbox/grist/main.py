@@ -159,6 +159,34 @@ def run(sandbox):
     return formula_prompt.evaluate_formula(eng, table_id, col_id, row_id)
 
   @export
+  def evaluate_formula_adhoc(formula_str, record_dict):
+    """
+    Evaluates a Grist Python formula against a plain record dict.  The formula
+    uses $field syntax to access record fields, exactly like a column formula,
+    but it is not tied to any table or column in the document schema.
+
+    We validate that the result is JSON-serialisable before returning it.  This
+    is necessary for two reasons:
+      1. The result will ultimately be sent as a JSON webhook payload, so
+         non-serialisable values (e.g. Python complex numbers) are invalid.
+      2. Python's marshal module *can* encode some types (e.g. complex) that the
+         TypeScript unmarshaller does not support.  If such a value reached the
+         marshal layer it would raise an error that closes the sandbox pipe,
+         terminating the sandbox process.  Catching it here instead lets the
+         error surface as a normal sandbox exception that callers can handle
+         gracefully.
+    """
+    import json
+    import types
+
+    rec = types.SimpleNamespace(**record_dict)
+    result = eng.eval_formula_adhoc(formula_str, rec)
+
+    # Raises TypeError / ValueError for non-JSON-serialisable values (see docstring).
+    json.dumps(result)
+    return result
+
+  @export
   def start_timing():
     eng._timing = Timing()
 

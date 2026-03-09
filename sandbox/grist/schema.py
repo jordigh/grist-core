@@ -13,7 +13,7 @@ from collections import OrderedDict, namedtuple
 
 import actions
 
-SCHEMA_VERSION = 46
+SCHEMA_VERSION = 47
 
 def make_column(col_id, col_type, formula='', isFormula=False):
   return {
@@ -274,6 +274,10 @@ def schema_create_actions():
       # When adding or updating this column it can also be just a formula string, in that case
       # engine will replace it with a full object (having both 'text' and 'parsed' fields).
       make_column("condition", "Text"),
+      # A Grist Python formula to transform the webhook payload. If set, the formula is evaluated
+      # against the record data and the result is serialized to JSON and sent as the webhook body.
+      # If null or empty, the default payload (the full record) is sent.
+      make_column("payloadFormula", "Text"),
     ]),
 
     # All of the ACL rules.

@@ -8,6 +8,7 @@ import * as testUtils from "test/server/testUtils";
 
 import axios from "axios";
 import { assert } from "chai";
+import express from "express";
 import pick from "lodash/pick";
 import * as sinon from "sinon";
 
@@ -102,6 +103,7 @@ describe("Triggers", function() {
       eventTypes?: string[]
       watchedColIds?: string[],
       condition?: string,
+      payloadFormula?: string | null,
     }) {
     // Subscribe helper that returns a method to unsubscribe.
     const webhook = await subscribe(docId, options);
@@ -121,9 +123,11 @@ describe("Triggers", function() {
     eventTypes?: string[],
     watchedColIds?: string[],
     condition?: string,
+    payloadFormula?: string | null,
     name?: string,
     memo?: string,
     enabled?: boolean,
+    url?: string,
   }) {
     // Subscribe helper that returns a method to unsubscribe.
     const { data, status } = await axios.post(`${serverUrl}/api/docs/${docId}/webhooks`, {
@@ -131,9 +135,9 @@ describe("Triggers", function() {
         fields: {
           tableId: options?.tableId ?? "Table1",
           eventTypes: options?.eventTypes ?? ["add", "update"],
-          url: `${serving.url}/data`,
+          url: options?.url ?? `${serving.url}/data`,
           isReadyColumn: options?.isReadyColumn,
-          ...pick(options, "name", "memo", "enabled", "watchedColIds", "condition"),
+          ...pick(options, "name", "memo", "enabled", "watchedColIds", "condition", "payloadFormula"),
         },
       }],
     }, chimpy);
@@ -401,5 +405,104 @@ describe("Triggers", function() {
 
       await clear();
     });
+  });
+
+  describe("payloadFormula", function() {
+    let docId: string;
+    let doc: DocAPI;
+    let captureServing: Serving | undefined;
+    this.timeout("30s");
+
+    before(async function() {
+      docId = await ownerApi.newDoc({ name: "testdocFormula" }, wsId);
+      doc = ownerApi.getDocAPI(docId);
+    });
+
+    after(async function() {
+      await captureServing?.shutdown();
+    });
+
+    afterEach(async function() {
+      await doc.flushWebhooks();
+      await clearQueue(docId);
+      await doc.applyUserActions([
+        ["RemoveRecord", "_grist_Triggers", 1],
+        ["RemoveRecord", "Table1", 1],
+      ]);
+      await captureServing?.shutdown();
+      captureServing = undefined;
+    });
+
+    it("should transform the payload using the formula", async function() {
+      // Set up a capturing webhook server that records the received body.
+      const received: any[] = [];
+      const receivedDefer = new Defer<void>();
+      captureServing = await serveSomething((app) => {
+        app.use(express.json());
+        app.post("/", (req, res) => {
+          received.push(...req.body);
+          receivedDefer.resolve();
+          res.sendStatus(200);
+        });
+      });
+
+      const webhook = await subscribe(docId, {
+        tableId: "Table1",
+        payloadFormula: '{"rowId": $id, "doubled": $A * 2}',
+        url: `${captureServing.url}/`,
+      });
+
+      // Add a record - should trigger webhook with transformed payload
+      waiter.start();
+      await doc.addRows("Table1", { A: [5] });
+      assert.equal(await waiter.wait(), 1, "Should have processed one event");
+
+      // Wait for the webhook to be received
+      await receivedDefer;
+
+      assert.equal(received.length, 1);
+      assert.deepEqual(received[0], { rowId: 1, doubled: 10 });
+
+      await unsubscribe(docId, webhook.id);
+    });
+
+    it("should report error in webhook status when formula output cannot be serialized to JSON",
+      async function() {
+        // Set up a capturing webhook server
+        captureServing = await serveSomething((app) => {
+          app.use(express.json());
+          app.post("/", (_, res) => {
+            res.sendStatus(200);
+          });
+        });
+
+        const webhook = await subscribe(docId, {
+          tableId: "Table1",
+          // complex() returns a Python complex number, which is not JSON-serializable
+          payloadFormula: "complex(1, 2)",
+          url: `${captureServing.url}/`,
+        });
+
+        // Add a record - the payloadFormula will fail to serialize
+        waiter.start();
+        await doc.addRows("Table1", { A: [1] });
+        // The event is skipped due to formula error, enqueue is called with 0 events
+        assert.equal(await waiter.wait(), 0, "Should have processed zero events (formula failed)");
+
+        // Check that the error was reported in the webhook status
+        const statsResult = await axios.get(
+          `${serverUrl}/api/docs/${docId}/webhooks`, chimpy,
+        );
+        assert.equal(statsResult.status, 200);
+        const stats = statsResult.data.webhooks;
+        const webhookStats = stats.find((s: any) => s.id === webhook.id);
+        assert.isOk(webhookStats, "Should find the webhook stats");
+        assert.isOk(
+          webhookStats.usage?.lastEventBatch?.errorMessage,
+          "Should have a lastEventBatch error message",
+        );
+
+        await unsubscribe(docId, webhook.id);
+      });
   });
 });

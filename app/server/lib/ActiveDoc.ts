@@ -54,6 +54,7 @@ import {
   DocAction,
   getTableId,
   isSchemaAction,
+  RowRecord,
   TableDataAction,
   toTableDataAction,
   UserAction,
@@ -92,6 +93,7 @@ import * as roles from "app/common/roles";
 import { schema, SCHEMA_VERSION } from "app/common/schema";
 import { MetaRowRecord, SingleCell } from "app/common/TableData";
 import { TelemetryEvent, TelemetryMetadataByLevel } from "app/common/Telemetry";
+import { JsonValue } from "app/common/Triggers";
 import { FetchUrlOptions, UploadResult } from "app/common/uploads";
 import {
   ANONYMOUS_USER_EMAIL,
@@ -1751,6 +1753,19 @@ export class ActiveDoc extends EventEmitter {
       throw new Error("evaluateCurrentFormula must be true");
     }
     return this._pyCall("evaluate_formula", options.tableId, options.colId, options.rowId);
+  }
+
+  /**
+   * Evaluates a Grist Python formula against a plain record dict.  The formula
+   * uses $field syntax like a column formula but is not tied to any table or
+   * column in the document schema.  Returns the result directly, or throws if
+   * evaluation or JSON validation fails.
+   */
+  public evaluateFormulaAdhoc(
+    formula: string,
+    record: RowRecord,
+  ): Promise<JsonValue> {
+    return this._rawPyCall("evaluate_formula_adhoc", formula, record);
   }
 
   public fetchURL(docSession: DocSession, url: string, options?: FetchUrlOptions): Promise<UploadResult> {

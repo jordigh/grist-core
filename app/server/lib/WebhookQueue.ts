@@ -2,6 +2,7 @@ import { MapWithTTL } from "app/common/AsyncCreate";
 import { WebhookMessageType } from "app/common/CommTypes";
 import { RowRecord } from "app/common/DocActions";
 import {
+  JsonValue,
   TriggerAction,
   WebhookBatchStatus,
   WebHookSecret,
@@ -26,7 +27,7 @@ import { createClient, Multi, RedisClient } from "redis";
 promisifyAll(RedisClient.prototype);
 
 interface WebHookEvent {
-  payload: RowRecord;
+  payload: RowRecord | JsonValue; // RowRecord by default; any JSON-serializable value when payloadFormula is used
   id: string;
 }
 
@@ -172,6 +173,13 @@ export class WebhookQueue {
 
   public clearWebhookCache(id: string) {
     this._webhookCache.delete(id);
+  }
+
+  /**
+   * Logs a payload formula evaluation error for a webhook, recording it in the webhook's status.
+   */
+  public async logPayloadFormulaError(webhookId: string, error: string): Promise<void> {
+    await this._stats.logBatch(webhookId, "failure", { error });
   }
 
   public async clearWebhookQueue() {
